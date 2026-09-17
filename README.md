@@ -7,17 +7,12 @@ Course repo for CS676 (Algorithms for Data Science), Fall 2026, Prof. Yiqiao Yin
 - `homework/` — the homework exercises (linear regression, logistic regression, k-fold CV, decision tree, k-means)
 - `project_1/` — Credibility Scoring project
 
-## How to run
-
-```bash
-python3 homework/01_lr.py
-```
 
 
 ## Status
 
 - [X] HW1 — Linear regression
-- [ ] HW2 — Logistic regression
+- [X] HW2 — Logistic regression
 - [ ] Project 1 — Credibility Scoring
 - [ ] HW3 — Cross validation
 - [ ] HW4 — Decision tree
