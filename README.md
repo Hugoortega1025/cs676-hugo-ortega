@@ -14,7 +14,7 @@ Course repo for CS676 (Algorithms for Data Science), Fall 2026, Prof. Yiqiao Yin
 - [X] HW1 — Linear regression
 - [X] HW2 — Logistic regression
 - [X] Project 1 — Credibility Scoring
-- [ ] HW3 — Cross validation
+- [X] HW3 — Cross validation
 - [ ] HW4 — Decision tree
 - [ ] Project 2 — PersonaForge
 - [ ] HW5 — K-means clustering
