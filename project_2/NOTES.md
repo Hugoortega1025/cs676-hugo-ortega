@@ -41,3 +41,16 @@ Decisions:
   model in tests can return the same shape without the SDK.
 - Only the real model (ClaudeLLM) has it. Offline mode doesn't, which will let
   the router fall back to regex when there's no tool support.
+
+
+## Nov 4 — Tool-use loop (orchestrator.py)
+
+What: added _handle_with_tools, the loop that lets Claude pick tools and runs them,
+plus _ROUTER_SYSTEM and MAX_TOOL_ROUNDS. handle() now uses it when the model
+supports tools, and falls back to the old regex router when it doesn't.
+
+Decisions:
+- New router prompt tells Claude to ask a question when info is missing (fixes task #2).
+- Cap of 5 rounds so it can't loop forever.
+- Kept the regex router as offline fallback and baseline.
+

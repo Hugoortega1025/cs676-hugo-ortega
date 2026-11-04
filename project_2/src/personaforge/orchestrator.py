@@ -90,6 +90,17 @@ can say things like "create a persona doctor", "list personas", or "have them ta
 about the test results"."""
 
 
+_ROUTER_SYSTEM = """You are the stage manager of a persona simulation workshop.
+
+The user builds fictional characters and has them talk to each other. Use the tools to create
+personas, list them, and start conversations. If a request is missing something you need,
+such as what kind of character to create, ask the user a short clarifying question to avoid guessing.
+Keep replies brief - two or three sentences.
+
+"""
+
+MAX_TOOL_ROUNDS = 5     # This makes sure the model doesn't loop forever
+
 @dataclass
 class Result:
     """What the orchestrator did, in a form the UI can render."""
@@ -228,9 +239,71 @@ class Orchestrator:
             return self._handle_regex(text, on_turn = on_turn, on_start = on_start)
 
         
-        # place holder
-        return self._handle_regex(text, on_turn = on_turn, on_start = on_start)
     
+        return self._handle_with_tools(text, on_turn = on_turn, on_start = on_start)
+
+
+    def _handle_with_tools(
+        self,
+        text: str,
+        on_turn: Optional[Callable[[Turn], None]] = None,
+        on_start: Optional[Callable[[str], None]] = None,
+    ) -> Result:            
+        """
+        Let Claude pick tools, run them, and send the results back until it is done.
+
+        Claude only chooses which tool to use. This method runs them, using the phone line (complete_with_tools) once per round.
+        """
+
+        # This is a transcript of the exchange since Claude has no memory
+        messages = [{"role": "user", "content": text}]
+        
+        # Events for the screen such as 'wrote temp/nurse-hugo.md
+        events : List[str] = []
+        
+        
+        conversation = None
+
+        # MAX_TOOL_ROUNDS is capped at 5, so a confused Claude cant loop forever
+        for _ in range(MAX_TOOL_ROUNDS):
+            
+            # The phone call to Claude with instructions, the transcript, and the tool menu
+            response = self.llm.complete_with_tools(_ROUTER_SYSTEM, messages, TOOLS)
+            
+            # Claude's reply to the trascript
+            messages.append({"role": "assistant", "content": response["content"]})
+
+            
+            # Claude didn't ask for a tool, so its done. Its text is the reply on screen,
+            # e.g. "Done, I created Nurse Hugo." or a clarifying question like "what kind of person?"
+            if response["stop_reason"] != "tool_use":
+                reply = " ".join(b["text"] for b in response["content"] if b["type"] == "text").strip()
+                return Result(reply=reply or "I didn't get a reply. Try rephrasing.", events=events, conversation=conversation)
+
+
+
+            # Claude asked for tools. Collect a result for each tool.
+            tool_results = []
+            for block in response["content"]:
+                if block["type"] != "tool_use":
+                    continue
+
+                # Run the method that matches the tool Claude asked for
+                result = self._run_tool(block["name"], block["input"], on_turn=on_turn, on_start=on_start)
+                
+                
+                events.extend(result.events)
+                if result.conversation is not None:
+                    conversation = result.conversation
+                
+                # Note for Claude with request's id
+                tool_results.append({"type": "tool_result", "tool_use_id": block["id"], "content": result.reply})
+
+            # Add results to the transcript.
+            messages.append({"role": "user", "content": tool_results})
+
+        return Result(reply="I stopped after too many steps. Try a simpler request.", events=events, conversation=conversation)
+
     
     
     def _handle_regex(
