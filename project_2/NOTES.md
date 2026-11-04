@@ -54,3 +54,13 @@ Decisions:
 - Cap of 5 rounds so it can't loop forever.
 - Kept the regex router as offline fallback and baseline.
 
+## Nov 4 — Tests for the tool-use loop
+
+What: added ScriptedToolLLM (a fake model that replays scripted tool requests) and
+tests/test_orchestrator.py with 7 tests. 48 passed.
+
+Why a fake: real Claude costs money, answers differently each run, and the grader
+may not have a key.
+
+Covers: creating from a phrase regex failed on, several tools in one round,
+clarifying question, 5-round safety net, 14-turn cap, unknown tool, offline fallback.

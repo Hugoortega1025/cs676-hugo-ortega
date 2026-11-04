@@ -199,6 +199,33 @@ class DemoLLM:
         return _DEMO_DIALOGUE[(len(self.calls) - 1) % len(_DEMO_DIALOGUE)]
 
 
+@dataclass
+class ScriptedToolLLM(DemoLLM):
+    """
+    A fake model for testing the tool-use loop without the API.
+
+    It is a DemoLLM, so it already writes fake personas and dialogue through
+    complete(). It adds complete_with_tools(), which replays scripted replies
+    in order, one per round. Once the script runs out, it keeps repeating the
+    last reply, which lets a test check the round limit.
+    """
+
+    responses: List[Dict[str, Any]] = field(default_factory=list)
+    tool_calls: List[Dict[str, Any]] = field(default_factory=list)
+
+    def complete_with_tools(
+        self,
+        system: str,
+        messages: List[Dict[str, Any]],
+        tools: List[Dict[str, Any]],
+        max_tokens: int = 2048,
+    ) -> Dict[str, Any]:
+        self.tool_calls.append({"system": system, "messages": list(messages), "tools": tools})
+        round_number = len(self.tool_calls) - 1
+        return self.responses[min(round_number, len(self.responses) - 1)]
+
+
+
 def default_llm(offline: bool = False, model: Optional[str] = None) -> LLM:
     """Pick an implementation. Central so you only change this in one place."""
     if offline:
