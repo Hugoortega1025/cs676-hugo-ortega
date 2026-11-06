@@ -120,3 +120,36 @@ def test_offline_mode_uses_regex_router(tmp_path):
     orch.handle("create a persona doctor")
 
     assert len(list(tmp_path.glob("*.md"))) == 1
+
+
+# The persona list shows on screen, not just in what gets sent back to Claude.
+def test_list_is_shown_on_screen(tmp_path):
+    llm = ScriptedToolLLM(responses=[tool_request("list_personas", {}), text_reply("Here they are.")])
+    orch = Orchestrator(llm, persona_dir=tmp_path)
+    orch._create_persona("a calm nurse")
+
+    result = orch.handle("list personas")
+
+    assert any("A Calm Nurse" in event for event in result.events)
+
+
+"""Tests for how conversations set the scene for each agent."""
+
+from personaforge.agent import agent_from_spec
+from personaforge.conversation import run_conversation
+from personaforge.llm import ScriptedLLM
+from personaforge.persona import PersonaSpec
+
+
+# Each agent is told the situation and who else is there, with no fake "Scene" speaker.
+def test_agents_know_the_situation_and_each_other():
+    llm = ScriptedLLM(replies=["Hi."])
+    nurse = agent_from_spec(PersonaSpec(name="Nurse Kim", role="nurse", summary="calm ER nurse", body="A nurse."), llm)
+    coach = agent_from_spec(PersonaSpec(name="Coach Mike", role="trainer", summary="demanding coach", body="A coach."), llm)
+
+    run_conversation([nurse, coach], topic="a gym member asking about recovery", turns=2)
+
+    first_prompt = llm.calls[0]["system"]
+    assert "a gym member asking about recovery" in first_prompt
+    assert "Coach Mike" in first_prompt
+    assert "Scene:" not in str(llm.calls[0]["messages"])

@@ -59,8 +59,14 @@ def run_conversation(
 
     # The topic is injected as a scene-setting turn from a narrator. Every agent
     # sees it as context but nobody has to answer it directly.
-    history: List[Turn] = [Turn(speaker="Scene", text=topic)]
-
+    
+    # Each agent sees the scene-setting and who else is in involved in the situation.
+    for agent in agents:
+        others = [a for a in agents if a is not agent]
+        lines = [f"- {a.spec.name} ({a.spec.role}): {a.spec.summary}" for a in others]
+        agent.scene = f"Situation: {topic}\n\nYou are talking with: \n" + "\n".join(lines)
+    
+    history: List[Turn] = []
     for i in range(turns):
         speaker = agents[i % len(agents)]
         text = speaker.respond(history)

@@ -62,12 +62,15 @@ def test_on_turn_fires_per_turn():
 
 
 def test_topic_reaches_the_agents():
-    """The scene turn must be visible to the first speaker."""
+    """
+    The topic must be visible to the first speaker. It now arrives in the
+    system prompt as part of the scene, instead of as a fake "Scene" message.
+    """
     a, b, llm = two_agents()
     run_conversation([a, b], topic="UNIQUE_TOPIC_MARKER", turns=1)
 
-    first_call = llm.calls[0]["messages"]
-    assert any("UNIQUE_TOPIC_MARKER" in m["content"] for m in first_call)
+    first_call = llm.calls[0]
+    assert "UNIQUE_TOPIC_MARKER" in first_call["system"]
 
 
 def test_transcript_contains_every_line():

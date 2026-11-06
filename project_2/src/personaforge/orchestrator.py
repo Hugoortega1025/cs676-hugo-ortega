@@ -62,7 +62,8 @@ TOOLS = [
                    "properties" : {
                        "topic" : {
                            "type" : "string",
-                           "description" : "What the personas in the situation should talk about",
+                            "description": "The situation the personas are in, as a short scene, for example, 'a follow-up appointment where the patient wants to cut carbs'. Not a single word.",
+
                        },
                        "participants" : {
                            "type" : "array", 
@@ -293,6 +294,11 @@ class Orchestrator:
                 
                 
                 events.extend(result.events)
+
+                # When user ask for list of personas, they should see a list back
+                if block["name"] == "list_personas":
+                    events.append(result.reply)
+
                 if result.conversation is not None:
                     conversation = result.conversation
                 

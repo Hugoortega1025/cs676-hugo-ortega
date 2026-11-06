@@ -45,14 +45,19 @@ class PersonaAgent:
 
     spec: PersonaSpec
     llm: LLM
+    scene: str = "" # The situation and other participants user inputs
 
     @property
     def name(self) -> str:
         return self.spec.name
 
     def system_prompt(self) -> str:
-        """The persona markdown, wrapped in the in-character instructions."""
-        return _IN_CHARACTER_TEMPLATE.format(persona=self.spec.body, name=self.spec.name)
+        """The persona markdown, wrapped in the in-character instructions, with the scene addede."""
+        prompt = _IN_CHARACTER_TEMPLATE.format(persona =self.spec.body, name = self.spec.name)
+        if self.scene:
+            prompt += "\n\n==== THE SCENE ====" + self.scene
+        return prompt
+
 
     def respond(self, transcript: List["Turn"], max_tokens: int = 1024) -> str:  # noqa: F821
         """

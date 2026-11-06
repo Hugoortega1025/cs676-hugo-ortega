@@ -64,3 +64,67 @@ may not have a key.
 
 Covers: creating from a phrase regex failed on, several tools in one round,
 clarifying question, 5-round safety net, 14-turn cap, unknown tool, offline fallback.
+
+
+## Nov 4 — First live run (tool use, claude-haiku-4-5)
+
+Ran the same 4 baseline sentences with the real model.
+
+| What I typed | Regex router (offline) | Tool use (live) |
+|---|---|---|
+| create a persona | canned sentence | asked what kind of character, with examples (cheerful barista, etc.) |
+| make two doctors and a nurse | stub reply, nothing made | made 3 personas, 3 files. Made up their details itself without asking me |
+| list the personas then have them talk about diet | only listed | did both, but I never saw the list, and the conversation broke down (below) |
+| I want a nurse character | stub reply | asked what kind of nurse (compassionate, gruff, burned out...) |
+
+What worked:
+- Clarifying questions now come from Claude instead of a hard-coded line.
+- "Two doctors and a nurse" became 3 separate personas (once-per-character works).
+- Claude picked the 3 relevant personas for the conversation out of 7 in temp/
+  (4 were old offline demo leftovers). Regex would have just grabbed the first 2.
+
+Problems:
+- Inconsistent clarifying: it asked about "a nurse character" but not about
+  "two doctors and a nurse," even though both are just as vague. It's the
+  model's judgment, not a rule in my code.
+- The list never showed on screen. Tool results go back to Claude, and only
+  Claude's final text + events get shown. Need to fix.
+- The conversation broke character. The agents were confused about who they
+  were talking to ("I can't play Dr. Marcus Chen," "who are you?"), kept
+  telling each other they could only play themselves, and only got into an
+  actual scene near the end. Possible causes: each agent sees the others' lines
+  as a "user" talking to it, the topic ("diet") had no situation to anchor it,
+  and it was 3 people when the code was built for 2. Need to check
+  conversation.py and agent.py.
+- Similar names (Dr. Eleanor Chen, Dr. Marcus Chen, Nurse Marcus Webb) could
+  confuse find_persona if someone asks for "Marcus."
+
+Saved transcript: transcripts/nov4-diet-three-personas-haiku.md
+
+
+## Nov 4 — Fixed the list display and the broken conversation
+
+What:
+- The persona list now shows on screen. Before, it only went back to Claude, so
+  I never saw it unless Claude repeated it.
+- Each agent is now told the situation and who else is in the room (name, role,
+  summary). This goes in the agent's instructions (system prompt).
+- Removed the fake "Scene" speaker. It sent the topic as a message like
+  "Scene: diet", and the agents thought a person was talking to them.
+- Changed the topic description in TOOLS so Claude sends a real situation
+  ("a follow-up appointment where the patient wants to cut carbs"), not one word.
+- Tests: 50 passed. Added tests for the list showing on screen and for agents
+  knowing the scene.
+
+Why:
+- In the first live run the agents spent most of the conversation confused
+  ("I can't play Dr. Marcus Chen," "who are you?"). Reading agent.py showed they
+  were never told who else was there, and the first thing they got was "Scene: diet".
+
+Changed a provided test:
+- test_topic_reaches_the_agents checked for the topic in the messages, where the
+  old Scene speaker put it. The topic is in the system prompt now, so the test
+  checks there instead. It still checks the same thing: the topic reaches the agents.
+
+
+Next: rerun the same request live and compare it to the first transcript.
