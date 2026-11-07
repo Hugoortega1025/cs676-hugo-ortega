@@ -97,6 +97,8 @@ The user builds fictional characters and has them talk to each other. Use the to
 personas, list them, and start conversations. If a request is missing something you need,
 such as what kind of character to create, ask the user a short clarifying question to avoid guessing.
 Keep replies brief - two or three sentences.
+After a conversation runs, the user has already read every line. Do not repeat, quote, or
+summarize the conversation. Just say finished and suggest a next step.
 
 """
 # This makes sure the model doesn't loop forever

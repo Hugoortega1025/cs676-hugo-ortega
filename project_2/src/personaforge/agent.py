@@ -12,6 +12,7 @@ between turns. That is a design decision with consequences; see YOUR TASK.
 """
 
 from __future__ import annotations
+import re
 
 from dataclasses import dataclass
 from typing import List
@@ -38,6 +39,29 @@ Rules:
 - Keep replies to a few sentences unless the moment genuinely calls for more.
 - You are {name}. Do not mention that you are an AI or a simulation."""
 
+
+
+
+
+
+def _strip_stage_directions(text: str) -> str:
+    """
+    Remove stage directions the model writes despite being told not to.
+
+    The prompt says "no asterisks", but models still write lines like
+    "*pauses, considering*". The prompt asks; this makes sure.
+    """
+    # Drop lines that are only a stage direction, like "*leans forward slightly*"
+    kept = [line for line in text.splitlines() if not re.fullmatch(r"\s*\*[^*]+\*\s*", line)]
+
+    # Remove leftover asterisks but keep the words: "*are* trying" -> "are trying"
+    cleaned = "\n".join(kept).replace("*", "")
+
+    # Squash the extra blank lines left where stage directions used to be
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+
+    # If the whole reply was a stage direction, keep its words rather than return nothing
+    return cleaned.strip() or text.replace("*", "").strip()
 
 @dataclass
 class PersonaAgent:
@@ -81,8 +105,8 @@ class PersonaAgent:
         if not messages or messages[0]["role"] != "user":
             messages.insert(0, {"role": "user", "content": "(begin the conversation)"})
 
-        return self.llm.complete(self.system_prompt(), messages, max_tokens=max_tokens)
-
+        reply = self.llm.complete(self.system_prompt(), messages, max_tokens=max_tokens)
+        return _strip_stage_directions(reply)
 
 def agent_from_spec(spec: PersonaSpec, llm: LLM) -> PersonaAgent:
     """Convenience constructor, so callers don't import the dataclass directly."""

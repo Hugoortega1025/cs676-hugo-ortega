@@ -74,3 +74,15 @@ def test_own_lines_become_assistant_turns():
 def test_agent_name_comes_from_the_spec():
     agent, _ = make_agent()
     assert agent.name == "Dr. Reyes"
+
+
+# Stage directions on their own line are removed.
+def test_stage_directions_are_removed():
+    llm = ScriptedLLM(replies=["*pauses, considering*\n\nThe ones who *are* trying don't know why."])
+    agent = agent_from_spec(PersonaSpec(name="Nurse Kim", role="nurse", summary="calm", body="A nurse."), llm)
+
+    reply = agent.respond([])
+
+    assert "pauses" not in reply
+    assert "*" not in reply
+    assert "are trying" in reply

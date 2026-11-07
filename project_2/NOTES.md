@@ -186,3 +186,43 @@ Tests: 55 passed. New tests for no overwriting, taken names reaching the
 writer, memory working across messages, personas being listed, and memory
 staying capped.
 
+## Nov 7 — Live rerun after all fixes (claude-haiku-4-5)
+
+Same 3 messages as Nov 6, typed separately.
+
+Fixed:
+- Names: all 6 different (Webb, Vasquez, Ochoa, Chen, Okafor, Rothschild).
+- Files: 6 personas made, 6 files on disk. Nothing overwritten.
+- Memory: "have them talk about diet" as its own message started a
+  conversation instead of asking "do you have personas?"
+- Scene: Claude turned "diet" into a real situation (a team meeting about
+  diet and patient recovery). The agents talked to each other by name,
+  stayed on topic, and built on each other's points.
+
+Length: 6 lines total (default), 2 each. Turns = total lines for everyone,
+not per person. Cap of 14 with 3 people = about 4-5 each.
+
+Still wrong:
+- The stage manager made up a second conversation after the real one
+  ("Here's their conversation:" plus lines nobody said). It only gets back
+  "6 turns between...", never the actual lines, so it invented a recap.
+  The user already sees the conversation, so it shouldn't recap at all.
+- Agents ignored their rules: *pauses*, *leans forward* stage directions and
+  paragraph-long replies, even though agent.py says no asterisks and keep it
+  to a few sentences.
+
+Saved: transcripts/nov7-diet-after-all-fixes-haiku.md
+
+
+## Nov 7 — Fixed the made-up recap and stage directions
+
+- Recap: added a rule to _ROUTER_SYSTEM: after a conversation, don't repeat
+  or summarize it, the user already read it. Can't test this offline, since it's
+  about what real Claude chooses to say. Check it in the live run.
+- Stage directions: agents kept writing *pauses* / *leans forward* even though
+  their instructions say no asterisks. Added _strip_stage_directions in agent.py:
+  it deletes lines that are only a stage direction, then removes leftover
+  asterisks but keeps the words, so "*are* trying" stays "are trying".
+  The prompt asks, the code makes sure.
+
+- Tests: 56 passed.
