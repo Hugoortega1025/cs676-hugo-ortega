@@ -128,3 +128,61 @@ Changed a provided test:
 
 
 Next: rerun the same request live and compare it to the first transcript.
+
+
+## Nov 6 — Live rerun found 2 new bugs
+
+Ran "make two doctors and a nurse", then "have them talk about diet", then
+"make two personal trainers and a client".
+
+Bug 1: personas with the same name overwrite each other.
+- It made two doctors both named Dr. Marcus Chen, and later two people named
+  Marcus Chen. Same name = same filename, so the second one replaced the first.
+- It said it created 6 personas. ls temp/ shows only 4 files.
+- Why: save_persona writes the file without checking if it already exists
+  (persona.py YOUR TASK #2). Haiku also keeps reusing the same names
+  ("Marcus", "Chen"), because each persona is written in its own call that
+  doesn't know which names are taken.
+
+Bug 2: the router forgets what happened one message ago.
+- After creating 3 personas, "have them talk about diet" got back
+  "Do you already have personas created?"
+- Why: every message starts a brand-new transcript in _handle_with_tools, so
+  Claude has no idea it just made anyone, and "them" means nothing
+  (orchestrator.py YOUR TASK #6). It didn't show up in the first live run
+  because that one did both steps in one sentence.
+
+
+
+Next: fix the overwrite (add -2, -3 to the filename, and tell the writer which
+names are taken), then give the router short-term memory.
+
+
+## Nov 7 — Fixed the 2 bugs from the Nov 6 live run
+
+Fix 1: no more overwriting.
+- save_persona now checks if the filename is taken. If marcus-chen.md exists,
+  the next one is saved as marcus-chen-2.md instead of replacing it.
+- The -2 is only on the filename. The persona inside is still "Marcus Chen".
+
+Fix 2: fewer repeated names.
+- Each persona is written in its own call to Claude, so it couldn't see which
+  names were already used. Now we pass it the names already saved in temp/
+  and tell it to pick a different one.
+- This is a request, not a guarantee. Fix 1 is the safety net:
+  the prompt asks, the code makes sure nothing gets lost.
+
+Fix 3: the router remembers.
+- "make two doctors and a nurse" then "have them talk" (two separate messages)
+  used to fail, because every message started from scratch.
+- Now it remembers the last 10 messages (5 back-and-forths), text only, and is
+  told which personas exist every time.
+- Kept to 10 so every request doesn't resend the whole session, which would get
+  expensive.
+- Only plain text is remembered, not the tool requests, because those have to
+  stay in matching pairs, and trimming could cut a pair in half.
+
+Tests: 55 passed. New tests for no overwriting, taken names reaching the
+writer, memory working across messages, personas being listed, and memory
+staying capped.
+

@@ -99,8 +99,13 @@ such as what kind of character to create, ask the user a short clarifying questi
 Keep replies brief - two or three sentences.
 
 """
+# This makes sure the model doesn't loop forever
+MAX_TOOL_ROUNDS = 5     
 
-MAX_TOOL_ROUNDS = 5     # This makes sure the model doesn't loop forever
+
+# Short amount of back-and-forth messages the router remembers.
+# Will allow Claude to remember the personas present in the conversation
+MAX_REMEMBERED_MESSAGES = 10
 
 @dataclass
 class Result:
@@ -118,6 +123,7 @@ class Orchestrator:
         self.llm = llm
         self.persona_dir = Path(persona_dir)
         self.history: List[dict] = []
+        self.router_history: List[dict] = []    # Recent exchanges the router remembers
 
     # -- intents ------------------------------------------------------------
 
@@ -126,7 +132,9 @@ class Orchestrator:
         if not description.strip():
             return Result(reply="Tell me what kind of persona — for example, 'create a persona doctor'.")
 
-        spec = generate_persona(description, self.llm)
+        # Names already on disk, so the new persona gets a different one
+        taken = [s.name for s in list_personas(self.persona_dir)]
+        spec = generate_persona(description, self.llm, taken_names=taken)
         path = save_persona(spec, self.persona_dir)
         return Result(
             reply=f"Created **{spec.name}** ({spec.role}) — {spec.summary}",
@@ -256,8 +264,16 @@ class Orchestrator:
         Claude only chooses which tool to use. This method runs them, using the phone line (complete_with_tools) once per round.
         """
 
-        # This is a transcript of the exchange since Claude has no memory
-        messages = [{"role": "user", "content": text}]
+    
+        # Uses what the router remembers and then adds the transcript of the exchange for Claude
+        messages = self.router_history + [{"role": "user", "content": text}]
+
+        # Tells Claude which personas exist
+        existing = [f"{s.name} ({s.role})" for s in list_personas(self.persona_dir)]
+        if existing:
+            system = _ROUTER_SYSTEM + "\n\nPersonas that already exist: " + ", ".join(existing)
+        else:
+            system = _ROUTER_SYSTEM + "\n\nNo personas exist yet."
         
         # Events for the screen such as 'wrote temp/nurse-hugo.md
         events : List[str] = []
@@ -268,8 +284,9 @@ class Orchestrator:
         # MAX_TOOL_ROUNDS is capped at 5, so a confused Claude cant loop forever
         for _ in range(MAX_TOOL_ROUNDS):
             
-            # The phone call to Claude with instructions, the transcript, and the tool menu
-            response = self.llm.complete_with_tools(_ROUTER_SYSTEM, messages, TOOLS)
+            # The phone call to Claude with instructions, the transcript, 
+            # the tool menu and existing personas
+            response = self.llm.complete_with_tools(system, messages, TOOLS)
             
             # Claude's reply to the trascript
             messages.append({"role": "assistant", "content": response["content"]})
@@ -279,7 +296,13 @@ class Orchestrator:
             # e.g. "Done, I created Nurse Hugo." or a clarifying question like "what kind of person?"
             if response["stop_reason"] != "tool_use":
                 reply = " ".join(b["text"] for b in response["content"] if b["type"] == "text").strip()
-                return Result(reply=reply or "I didn't get a reply. Try rephrasing.", events=events, conversation=conversation)
+                reply = reply or "I didn't get a reply. Try rephrasing."
+
+                # Remembers exchange by keeping most recent messages
+                self.router_history += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
+                self.router_history = self.router_history[-MAX_REMEMBERED_MESSAGES:]
+
+                return Result(reply=reply, events=events, conversation=conversation)
 
 
 

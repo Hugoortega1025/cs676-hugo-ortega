@@ -155,3 +155,25 @@ def test_generate_persona_survives_unstructured_output():
 
     assert spec.name != "Unnamed"
     assert spec.summary == "a nurse"
+
+# Two personas with the same name both get saved; the second doesn't replace the first.
+def test_same_name_does_not_overwrite(tmp_path):
+    first = PersonaSpec(name="Marcus Chen", role="doctor", summary="a doctor", body="I am the first one.")
+    second = PersonaSpec(name="Marcus Chen", role="trainer", summary="a trainer", body="I am the second one.")
+
+    first_path = save_persona(first, tmp_path)
+    second_path = save_persona(second, tmp_path)
+
+    assert first_path != second_path
+    assert len(list(tmp_path.glob("*.md"))) == 2
+    assert "first one" in first_path.read_text()
+
+
+# Names already in use reach the persona writer's instructions.
+def test_taken_names_reach_the_writer():
+    llm = ScriptedLLM(replies=["---\nname: Nia Okafor\nrole: doctor\nsummary: a doctor\n---\n\nBody"])
+
+    generate_persona("a doctor", llm, taken_names=["Marcus Chen", "Margaret Chen"])
+
+    assert "Marcus Chen" in llm.calls[0]["system"]
+    assert "Margaret Chen" in llm.calls[0]["system"]

@@ -6,7 +6,7 @@ so they run offline, instantly, and for free.
 """
 
 from personaforge.llm import DemoLLM, ScriptedToolLLM
-from personaforge.orchestrator import MAX_TOOL_ROUNDS, Orchestrator
+from personaforge.orchestrator import MAX_TOOL_ROUNDS, MAX_REMEMBERED_MESSAGES, Orchestrator
 
 
 # Shortcuts for building the replies the fake model plays back.
@@ -153,3 +153,38 @@ def test_agents_know_the_situation_and_each_other():
     assert "a gym member asking about recovery" in first_prompt
     assert "Coach Mike" in first_prompt
     assert "Scene:" not in str(llm.calls[0]["messages"])
+
+
+# The second message is sent along with the first one, so "them" has context.
+def test_router_remembers_the_previous_message(tmp_path):
+    llm = ScriptedToolLLM(responses=[text_reply("Created Nurse Kim."), text_reply("Sure.")])
+    orch = Orchestrator(llm, persona_dir=tmp_path)
+
+    orch.handle("make a nurse")
+    orch.handle("have them talk")
+
+    second_call = llm.tool_calls[1]["messages"]
+    assert any(m["content"] == "make a nurse" for m in second_call)
+    assert any(m["content"] == "Created Nurse Kim." for m in second_call)
+
+
+# Claude is told which personas exist, even with no memory.
+def test_router_is_told_which_personas_exist(tmp_path):
+    llm = ScriptedToolLLM(responses=[text_reply("Ok.")])
+    orch = Orchestrator(llm, persona_dir=tmp_path)
+    orch._create_persona("a calm nurse")
+
+    orch.handle("who do I have?")
+
+    assert "A Calm Nurse" in llm.tool_calls[0]["system"]
+
+
+# Memory stays capped no matter how long the session runs.
+def test_router_memory_is_capped(tmp_path):
+    llm = ScriptedToolLLM(responses=[text_reply("Ok.")])
+    orch = Orchestrator(llm, persona_dir=tmp_path)
+
+    for _ in range(20):
+        orch.handle("hello")
+
+    assert len(orch.router_history) <= MAX_REMEMBERED_MESSAGES

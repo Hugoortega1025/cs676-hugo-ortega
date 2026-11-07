@@ -113,10 +113,23 @@ class PersonaSpec:
 
 
 def save_persona(spec: PersonaSpec, directory: Path = DEFAULT_PERSONA_DIR) -> Path:
-    """Write the persona to `<directory>/<slug>.md`, creating the folder if needed."""
+    """Write the persona to `<directory>/<slug>.md`, creating the folder if needed.
+    
+    If that filename is already taken, add -2, -3, and so on, avoiding overwriting.
+    In this case two personas with the same name survive.
+    
+    """
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{spec.slug()}.md"
+    
+    # Adds number (version) to the same persona name
+    # as the distinguisher 
+    number = 2
+    while path.exists():
+        path = directory / f"{spec.slug()}-{number}.md"
+        number += 1
+
     path.write_text(spec.to_markdown(), encoding="utf-8")
     return path
 
@@ -189,20 +202,26 @@ Write a specific individual, not a type. Give them a quirk. Avoid stereotypes,
 and do not make them a spokesperson for a demographic."""
 
 
-def generate_persona(description: str, llm: LLM) -> PersonaSpec:
+def generate_persona(description: str, llm: LLM, taken_names: Optional[List[str]] = None) -> PersonaSpec:
     """
     Ask the model to author a persona from a one-line description.
 
     :param description: e.g. "a patient with type 2 diabetes who distrusts doctors"
     :param llm:         any LLM implementation (real or scripted)
+    :param taken_names: names already in use, so the model picks a different one
     :return:            the parsed PersonaSpec — not yet saved to disk
     """
+    # Each persona is written in its own call, so the model can't see the others.
+    # Tell it which names are taken, so it avoids picking the same name.
+    system = _AUTHOR_SYSTEM
+    if taken_names:
+        system += "\n\nThese names are already taken, so choose a different name: " + ", ".join(taken_names)
+
     markdown = llm.complete(
-        system=_AUTHOR_SYSTEM,
+        system=system,
         messages=[{"role": "user", "content": f"Write a persona for: {description}"}],
         max_tokens=2048,
     )
-
     spec = PersonaSpec.from_markdown(markdown)
 
     # If the model ignored the frontmatter format we still want something usable,
