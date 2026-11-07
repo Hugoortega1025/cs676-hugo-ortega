@@ -226,3 +226,40 @@ Saved: transcripts/nov7-diet-after-all-fixes-haiku.md
   The prompt asks, the code makes sure.
 
 - Tests: 56 passed.
+
+
+
+
+## Nov 7 — Narration fix + Haiku vs Sonnet test
+
+Problem: after removing asterisks, Haiku still narrated in plain sentences
+("I lean against the desk", "I pause"). Code can't catch it, since there's no
+marker. It had to be fixed in the agent's instructions.
+
+Fix: rewrote the rules in agent.py with a wrong/right example ("only the words
+you say out loud") and 2-4 sentence replies.
+
+Test: same 3 personas, same request, 6 turns, 3 runs each model.
+Rule for counting: a line is narration if it describes what the speaker is
+doing or paying attention to ("I let that sit", "I'm listening to this").
+Normal replies like "I hear you" don't count.
+
+Results:
+- Haiku: 2/18 lines narrated (11%), both in run 3, both from Renata.
+- Sonnet: 0/18 (0%).
+- Before the fix, Haiku narrated almost every line. So the prompt fix mattered
+  more than the model. Sonnet is a bit more reliable. Small sample.
+
+Also found:
+- No made-up recaps in any of the 6 runs. The recap fix held.
+- Haiku once asked a clarifying question when it didn't need to. The "ask when
+  info is missing" rule can make it ask too much.
+- Agents invent facts that change between runs (Trent's blood pressure is "down"
+  in one run, never checked in another). Persona files don't fix these details.
+- Trainers keep making confident health claims ("I guarantee it doesn't move",
+  "your heart and lungs are stronger"). Nothing checks if it's true.
+  Risky for a fitness/health app.
+- Every conversation stopped mid-argument at 6 turns. No idea of being finished.
+
+
+Saved: transcripts/nov7-exp-haiku-1 to 3, nov7-exp-sonnet-1 to 3
