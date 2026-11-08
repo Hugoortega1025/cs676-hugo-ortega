@@ -263,3 +263,32 @@ Also found:
 
 
 Saved: transcripts/nov7-exp-haiku-1 to 3, nov7-exp-sonnet-1 to 3
+
+
+## Nov 8 — Robustness fixes (rubric: bad input, missing personas, API failures)
+
+1. Empty input: a blank line gets a reply right away, nothing sent to Claude.
+2. API failure in the router: caught, and the app says what kind of error it
+   was instead of crashing. It names the error so real bugs aren't hidden,
+   unlike the silent except that hid a bug in Project 1.
+3. API failure mid-conversation: stops there but keeps the lines already said,
+   plus a "stopped early" note (conversation.py TASK #6).
+4. Bad turn values: "8" (text), 0, -3, or junk get turned into a whole number
+   between 2 and 14, with 6 as the fallback.
+5. Transcripts: each one gets its own timestamped file in temp/conversations/,
+   so nothing overwrites (conversation.py TASK #5).
+
+Found while doing #5: transcripts were saved in the same folder as personas,
+so list_personas read them as a persona called "Unnamed (unknown)". That was
+the mystery persona from my Nov 2 baseline test. The subfolder fixes it.
+
+Changed provided tests (purpose kept, only where they look):
+- test_topic_reaches_the_agents: the topic is now in the system prompt.
+- test_conversation_runs_with_two_personas: the transcript is now in
+  conversations/ with its own name.
+
+Missing personas were already handled: unknown names get an error message
+that goes back to Claude.
+
+With all fixes and test cases added.
+TESTS PASSED: 61

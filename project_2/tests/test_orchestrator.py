@@ -188,3 +188,68 @@ def test_router_memory_is_capped(tmp_path):
         orch.handle("hello")
 
     assert len(orch.router_history) <= MAX_REMEMBERED_MESSAGES
+
+
+# A blank message is answered right away and never sent to Claude.
+def test_empty_input_is_not_sent_to_claude(tmp_path):
+    llm = ScriptedToolLLM(responses=[text_reply("should not be used")])
+    orch = Orchestrator(llm, persona_dir=tmp_path)
+
+    result = orch.handle("   ")
+
+    assert len(llm.tool_calls) == 0
+    assert result.reply
+
+
+# A fake model that always fails, to act like the internet dropping.
+class FailingToolLLM(ScriptedToolLLM):
+    def complete_with_tools(self, *args, **kwargs):
+        raise ConnectionError("network down")
+
+
+# If the call to Claude fails, the app explains instead of crashing.
+def test_api_failure_does_not_crash(tmp_path):
+    orch = Orchestrator(FailingToolLLM(), persona_dir=tmp_path)
+
+    result = orch.handle("make a nurse")
+
+    assert "ConnectionError" in result.reply
+
+
+
+# Whatever Claude sends for turns becomes a sensible number between 2 and 14.
+def test_bad_turn_values_are_cleaned_up(tmp_path):
+    cases = [("8", 8), (-3, 2), (0, 2), ("lots", 6)]
+
+    for i, (sent, expected) in enumerate(cases):
+        folder = tmp_path / f"case{i}"
+        llm = ScriptedToolLLM(responses=[
+            tool_request("start_conversation", {"topic": "anything", "turns": sent}),
+            text_reply("Done."),
+        ])
+        orch = Orchestrator(llm, persona_dir=folder)
+        orch._create_persona("a calm nurse")
+        orch._create_persona("a personal trainer")
+
+        result = orch.handle("have them talk")
+
+        assert len(result.conversation.turns) == expected, f"turns={sent!r}"
+
+
+# Each conversation gets its own file, and transcripts aren't mistaken for personas.
+def test_transcripts_are_kept_and_not_read_as_personas(tmp_path):
+    llm = ScriptedToolLLM(responses=[
+        tool_request("start_conversation", {"topic": "anything"}),
+        text_reply("Done."),
+        tool_request("start_conversation", {"topic": "something else"}),
+        text_reply("Done again."),
+    ])
+    orch = Orchestrator(llm, persona_dir=tmp_path)
+    orch._create_persona("a calm nurse")
+    orch._create_persona("a personal trainer")
+
+    orch.handle("have them talk")
+    orch.handle("have them talk again")
+
+    assert len(list((tmp_path / "conversations").glob("*.md"))) == 2
+    assert len(list(tmp_path.glob("*.md"))) == 2

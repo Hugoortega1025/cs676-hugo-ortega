@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
 from .agent import PersonaAgent
+from datetime import datetime
 
 
 @dataclass
@@ -69,7 +70,14 @@ def run_conversation(
     history: List[Turn] = []
     for i in range(turns):
         speaker = agents[i % len(agents)]
-        text = speaker.respond(history)
+
+        # If one reply fails (network drop, API error), stop here but keep everything
+        # said so far, instead of losing the whole conversation
+        try:
+            text = speaker.respond(history)
+        except Exception as e:
+            conversation.turns.append(Turn(speaker="(system)", text=f"Conversation stopped early: {type(e).__name__}"))
+            break
         turn = Turn(speaker=speaker.name, text=text)
 
         history.append(turn)
@@ -82,12 +90,16 @@ def run_conversation(
 
 
 def save_transcript(conversation: Conversation, directory, filename: Optional[str] = None):
-    """Write the transcript to disk next to the personas that produced it."""
+    """Write the transcript to disk. Without a filename, each conversation
+    trascript gets a timestamped name.
+    """
     from pathlib import Path
 
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    name = filename or "conversation.md"
+    # Name it by date and time, so each conversation is kept
+    # instead of overwriting the last one 
+    name = filename or f"conversation-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.md"
     path = directory / name
     path.write_text(conversation.transcript(), encoding="utf-8")
     return path

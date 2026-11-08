@@ -179,7 +179,8 @@ class Orchestrator:
         if on_start is not None:
             on_start(topic)
         conversation = run_conversation(agents, topic=topic, turns=turns, on_turn=on_turn)
-        path = save_transcript(conversation, self.persona_dir, filename="conversation.md")
+        # Transcripts go in their own subfolder, so list_personas never reads one as a persona
+        path = save_transcript(conversation, self.persona_dir / "conversations")
 
         return Result(
             reply=f"{len(conversation.turns)} turns between {' and '.join(s.name for s in specs)}.",
@@ -219,7 +220,14 @@ class Orchestrator:
 
         # Claude requested personas to start the conversation: Defaults to 6 lines, capped at 14
         elif tool_name == "start_conversation":
-            turns = min(tool_input.get("turns", 6), 14)  
+            # Claude might send turns as text ("8"), zero or a negative.
+            # Turn it into a whole number, fall back to 6 if it can't be read,
+            # then keep it between 2 (so both people speak) and 14.
+            try:
+                turns = int(tool_input.get("turns", 6))
+            except (TypeError, ValueError):
+                turns = 6
+            turns = max(2, min(turns, 14))  
             return self._converse(
                 topic=tool_input.get("topic", "an initial consultation"),
                 who=tool_input.get("participants"),
@@ -246,10 +254,20 @@ class Orchestrator:
         router when it doesn't (offline mode and tests).
         """
 
+    # Nothing typed: Say something and don't sned an empty message to Claude
+        if not text.strip():
+            return Result(reply = "Type something, for example, 'make a personal trainer and a client'.")
+
+
         if not hasattr(self.llm, "complete_with_tools"):
             return self._handle_regex(text, on_turn = on_turn, on_start = on_start)
 
-        
+        # API failure: If fail to talk to Claude, name the error type.
+        # No silent errors
+        try:
+            return self._handle_with_tools(text, on_turn=on_turn, on_start=on_start)
+        except Exception as e:
+            return Result(reply=f"Something went wrong talking to Claude ({type(e).__name__}). Check your connection and try again.")
     
         return self._handle_with_tools(text, on_turn = on_turn, on_start = on_start)
 

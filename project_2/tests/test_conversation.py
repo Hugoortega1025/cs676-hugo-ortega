@@ -132,7 +132,8 @@ def test_conversation_runs_with_two_personas(tmp_path):
 
     assert result.conversation is not None
     assert len(result.conversation.turns) == 6
-    assert (tmp_path / "conversation.md").exists()
+    # Transcripts now get their own timestamped name in a conversations/ subfolder
+    assert len(list((tmp_path / "conversations").glob("*.md"))) == 1
 
 
 def test_named_participants_are_resolved(tmp_path):
@@ -164,3 +165,30 @@ def test_unmatched_input_falls_through_to_chat(tmp_path):
 
     assert result.reply == "Tell me who you want to build."
     assert result.conversation is None
+
+
+
+# A fake model that answers a few times, then fails, like the internet dropping mid-conversation.
+class FailsAfterTwoLLM:
+    def __init__(self):
+        self.count = 0
+
+    def complete(self, system, messages, max_tokens=2048):
+        self.count += 1
+        if self.count > 2:
+            raise ConnectionError("network down")
+        return "A line."
+
+
+# If a reply fails midway through a conversation, the lines already said are kept.
+def test_failure_mid_conversation_keeps_what_was_said():
+    llm = FailsAfterTwoLLM()
+    a = agent_from_spec(PersonaSpec(name="A", role="nurse", summary="x", body="x"), llm)
+    b = agent_from_spec(PersonaSpec(name="B", role="coach", summary="x", body="x"), llm)
+
+    conversation = run_conversation([a, b], topic="anything", turns=6)
+
+    assert len(conversation.turns) == 3 
+    assert "stopped early" in conversation.turns[-1].text
+
+
