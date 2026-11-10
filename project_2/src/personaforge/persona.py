@@ -233,6 +233,17 @@ def generate_persona(description: str, llm: LLM, taken_names: Optional[List[str]
     return spec
 
 
+
+
+#  STATUS (Hugo Ortega):
+#  #2 DONE: save_persona adds -2, -3 to the filename instead of overwriting.
+#     generate_persona is also told which names are taken (taken_names),
+#     so repeats are rarer to begin with.
+#  #1 NOT DONE: matching is unchanged. "Marcus" still takes the first match.
+#  #3-#6 NOT DONE.
+
+
+
 # =============================================================================
 # YOUR TASK
 # =============================================================================

@@ -105,6 +105,21 @@ def save_transcript(conversation: Conversation, directory, filename: Optional[st
     return path
 
 
+
+
+#  STATUS (Hugo Ortega):
+#  #3 DONE: the fake "Scene" speaker is gone. run_conversation puts the
+#     situation and the other participants into each agent's instructions.
+#  #5 DONE: save_transcript gives each conversation its own timestamped name.
+#     The orchestrator saves them in a conversations/ subfolder, so they're
+#     never read back as personas.
+#  #6 DONE: if one reply fails, run_conversation stops there, keeps the lines
+#     already said, and adds a "stopped early" note.
+#  #1, #2, #4 NOT DONE.
+
+
+
+
 # =============================================================================
 # YOUR TASK
 # =============================================================================

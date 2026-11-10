@@ -119,6 +119,19 @@ def agent_from_spec(spec: PersonaSpec, llm: LLM) -> PersonaAgent:
     return PersonaAgent(spec=spec, llm=llm)
 
 
+
+
+#  STATUS (Hugo Ortega):
+#  #4 PARTLY: each agent is told the situation and who else is there (the
+#     scene field, set by run_conversation). _strip_stage_directions removes
+#     asterisk stage directions, and the rules in _IN_CHARACTER_TEMPLATE now
+#     include a wrong/right example. Nothing detects plain-sentence narration.
+#  #1-#3, #5 NOT DONE.
+
+
+
+
+
 # =============================================================================
 # YOUR TASK
 # =============================================================================

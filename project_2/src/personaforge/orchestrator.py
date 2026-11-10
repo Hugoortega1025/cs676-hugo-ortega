@@ -403,6 +403,28 @@ class Orchestrator:
         return self._chat(text)
 
 
+
+
+#  STATUS (Hugo Ortega):
+#  #1 DONE: TOOLS menu, _run_tool, and the _handle_with_tools loop. handle()
+#     uses tool use when the model supports it, and falls back to
+#     _handle_regex otherwise (offline mode and the tests).
+#  #2 DONE: _ROUTER_SYSTEM tells Claude to ask a short question when
+#     something is missing, instead of guessing.
+#  #3 DONE: the loop in _handle_with_tools runs every tool Claude asks for in
+#     one message, so "list the personas then have them talk" does both.
+#  #4 PARTLY: Claude can name participants through start_conversation, and the
+#     router is told which personas exist. _converse still picks the first two
+#     when nobody is named.
+#  #5 DONE: turns is an input on start_conversation. _run_tool cleans it up
+#     and keeps it between 2 and 14.
+#  #6 DONE for the tool router: router_history keeps the last
+#     MAX_REMEMBERED_MESSAGES (10) messages as plain text. The old
+#     self.history is still only used by the offline regex fallback.
+
+
+
+
 # =============================================================================
 # YOUR TASK
 # =============================================================================
